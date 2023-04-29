@@ -1,0 +1,24 @@
+version: '3.7'
+services:
+  mongo:
+    name: "golf_database"
+    restart: always
+    image: mongo:latest
+    ports:
+      - "3001:27017"
+    volumes:
+      - db:/home/puttnation_db
+
+  golf_backend:
+    build: .
+    container_name: "golf_backend"
+    ports:
+      - "3002:80"
+    restart: always
+
+volumes:
+  db:
+networks:
+  default:
+    name: proxy
+    external: true

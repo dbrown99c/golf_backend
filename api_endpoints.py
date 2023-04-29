@@ -1,17 +1,16 @@
-import asyncio
-from typing import Optional, List
+from typing import Optional, List, Any
 import json
 import config
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import copy
 import datetime
-import firestore
 from pytz import timezone
 from enum import Enum
 import time
 import random
+
+import mongo
 
 tags_metadata = [
     {
@@ -37,6 +36,7 @@ class Holes(BaseModel):
     id: str
     scores: int
 
+
 class Players(BaseModel):
     name: str
     scores: int
@@ -51,14 +51,26 @@ class Team(BaseModel):
     players: Optional[List[Players]] = None
     scores: Optional[int] = None
 
+
 class Course(str, Enum):
     pub = "pub"
     circus = "circus"
 
 
+class Leaderboard_Type(str, Enum):
+    player = "player"
+    team = "team"
+
+
+class Alarm(BaseModel):
+    course: str
+    hole: int
+    id: Optional[str]
+    state: Optional[Any]
+
 
 app = FastAPI(title="golf_backend", version="0.0.1", openapi_tags=tags_metadata)
-fs = firestore.FirestoreConnection()
+db = mongo.MongoConnection()
 
 app.add_middleware(
     CORSMiddleware,
@@ -67,9 +79,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-timezone_doc = fs.get_document("config", "timezone")
 
-config.timezone = timezone_doc["timezone"]
+
+# timezone_doc = db.get_document("config", "timezone")
+# config.timezone = timezone_doc["timezone"]
+
 
 def basemodels_to_dicts(*args):
     dicts = []
@@ -96,7 +110,7 @@ def calculate_team_score(players):
 # TODO: Document get team
 @app.get("/{course}/team/{pin}", tags=["Teams"])
 async def get_team(pin: str, course: Course):
-    team = fs.query_document(course, "pin", "==", pin)
+    team = db.query_document(course, "pin", "==", pin)
     return team
 
 
@@ -106,60 +120,100 @@ async def create_team(team: Team, course: Course):
     current_datetime = datetime.datetime.now(tz=timezone(config.timezone))
     team, = basemodels_to_dicts(team)
     players = team.get('players') if team.get('players') else {}
-    team_list = fs.query_document(course, "pin", ">", "", False)
+    team_list = db.query_document(course, "pin", ">", "", False)
     pin_set = False
     pin_list = [x.get("pin") for x in team_list if x.get("pin")] if len(team_list) > 0 else []
     while not pin_set:
-        pin = team.get('pin') if team.get('pin') else f"{random.randint(1, 10**4-1):{'04d'}}"
+        pin = team.get('pin') if team.get('pin') else f"{random.randint(1, 10 ** 4 - 1):{'04d'}}"
         if pin not in pin_list:
             pin_set = True
         "duplicate pin"
         time.sleep(1)
     scores = calculate_team_score(players) if players else 0
     doc_dict = {"name": team["name"], "created_at": current_datetime, "players": players, "pin": pin, "scores": scores}
-    fs.create_document(collection=course, **doc_dict)
+    db.create_document(collection=course, **doc_dict)
+    for _ in Course:
+        db.delete_old_docs(_)
     return dict(id=0, name=team['name'], pin=pin)
 
 
 # TODO: Build endpoint
-@app.get("/{course}/teams", tags=["Teams"])
-async def get_teams(course: Course):
-    return "response"
+@app.get("/teams", tags=["Teams"])
+async def get_teams():
+    base_list = []
+    for course in Course:
+        course_list = db.get_collection(course)
+        for x in course_list:
+            x["course"] = course
+            base_list.append(x)
+    return base_list
 
 
 # TODO: Document TeamList Get
 @app.get("/{course}/teamlist", tags=["Teams"])
 async def get_a_list_of_teams(course: Course):
-    teams_list = fs.get_collection(course)
+    teams_list = db.get_collection(course)
     response = dict(teams=teams_list)
     return response
 
 
-# TODO: Build endpoint
-@app.post("/{course}/leaderboard", tags=["Leaderboard"])
-async def get_leaderboard(course: Course):
-    return "response"
+# TODO: Document leaderboard
+@app.get("/{course}/leaderboard/{ltype}", tags=["Leaderboard"])
+async def get_leaderboard(ltype: Leaderboard_Type, course: Course):
+    weekago = datetime.datetime.now(tz=timezone(config.timezone)) - datetime.timedelta(days=7)
+    result_list = db.query_document(course, "created_at", ">=", weekago, False)
+    if ltype == 'team':
+        weekresults = [{'team': x.get('name'), 'scores': x.get('scores')} for x in result_list if len(x.get("players", [])[0].get("holes", [])) == 9]
+        weekresults = sorted(weekresults, key=lambda x: x['scores'], reverse=False)
+    else:
+        week_player_scores_list = []
+        for x in result_list:
+            if len(x.get("players", [])[0].get("holes", [])) == 9:
+                for player in x.get('players', {}):
+                    week_player_scores_list.append({
+                        'team': x.get('team'),
+                        'player': player.get('name'),
+                        'scores': player.get('scores')})
+        weekresults = sorted(week_player_scores_list, key=lambda x: x['scores'], reverse=False)
+    return {'day': [], 'week': weekresults}
 
 
 # TODO: Document Results
 @app.post("/{course}/results", tags=["Other"])
 async def update_results(team: Team, course: Course):
     team, = basemodels_to_dicts(team)
-    team["score"] = calculate_team_score(team["players"])
-    new_team_data = fs.upsert_to_document(course, team["id"], players=team["players"], score=team["score"])
+    team["scores"] = calculate_team_score(team["players"])
+    holes_complete = len(team.get("players", [])[0].get("holes", []))
+    if holes_complete == 9:
+        new_team_data = db.update_document(course, team["id"], players=team["players"], scores=team["scores"], pin="")
+    else:
+        new_team_data = db.update_document(course, team["id"], players=team["players"], scores=team["scores"])
     return new_team_data
 
 
 # TODO: Build endpoint
-@app.get("/{course}/alarms", tags=["Other"])
-async def get_alarms(course: Course):
-    return "response"
+@app.get("/alarms", tags=["Other"])
+async def get_alarms():
+    alarms = db.get_collection("alarms")
+    return alarms
 
 
 # TODO: Build endpoint
-@app.post("/{course}/alarm", tags=["Other"])
-async def create_alarm(course: Course):
-    return "response"
+@app.post("/alarm", tags=["Other"])
+async def create_alarm(alarm: Alarm):
+    alarm, = basemodels_to_dicts(alarm)
+    alarm["id"] = str(alarm["hole"])
+    db.upsert_document("alarms", alarm["course"]+alarm["id"], False, **alarm)
+    return alarm
+
+
+# TODO: Build endpoint
+@app.post("/alarm/delete", tags=["Other"])
+async def delete_alarm(alarm: Alarm):
+    alarm, = basemodels_to_dicts(alarm)
+    alarm["id"] = str(alarm["hole"])
+    db.delete_document("alarms", alarm["course"]+alarm["id"], False)
+    return alarm
 
 
 # Test Data
