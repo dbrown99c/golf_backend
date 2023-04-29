@@ -4,8 +4,6 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pip install poetry
-RUN poetry config virtualenvs.create false
-RUN poetry install --no-dev
+RUN pip install -r requirements.txt
 
 CMD ["python", "main.py"]
