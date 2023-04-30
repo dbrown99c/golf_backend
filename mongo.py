@@ -6,7 +6,7 @@ import config
 
 class MongoConnection:
     def __init__(self):
-        self.client = pymongo.MongoClient("localhost", 3001)
+        self.client = pymongo.MongoClient("172.20.0.2", 27017)
         self.db = self.client.puttnation
         self.op_dict = {"==": "eq", ">=": "gte", ">": "gt", "in": "in",
                         "<=": "lte", "<": "lt", "!=": "ne", "nin": "nin"}
@@ -82,6 +82,7 @@ class MongoConnection:
 # db.db.drop_collection("alarms")
 # print(db.get_collection("circus"))
 # print(db.get_collection("alarms"))
+# print(db.get_collection("pub"))
 # res = db.db["config"].find_one('timezone')
 # print(res)
 # db.create_document("config", **{"timezone":"US/Eastern", "_id": "timezone"})
