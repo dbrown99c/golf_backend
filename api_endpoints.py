@@ -4,7 +4,7 @@ import config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import datetime
+from datetime import datetime, timedelta, timezone
 from pytz import timezone
 from enum import Enum
 import time
@@ -46,7 +46,7 @@ class Players(BaseModel):
 class Team(BaseModel):
     id: Optional[str]
     name: str
-    time: Optional[datetime.datetime] = None
+    time: Optional[datetime] = None
     pin: Optional[int] = None
     players: Optional[List[Players]] = None
     scores: Optional[int] = None
@@ -117,7 +117,7 @@ async def get_team(pin: str, course: Course):
 # TODO: Document Create Team
 @app.post("/{course}/team", tags=["Teams"])
 async def create_team(team: Team, course: Course):
-    current_datetime = datetime.datetime.now(tz=timezone(config.timezone))
+    current_datetime = datetime.now(tz=timezone(config.timezone))
     team, = basemodels_to_dicts(team)
     players = team.get('players') if team.get('players') else {}
     team_list = db.query_document(course, "pin", ">", "", False)
@@ -137,12 +137,27 @@ async def create_team(team: Team, course: Course):
     return dict(id=0, name=team['name'], pin=pin)
 
 
-# TODO: Build endpoint
 @app.get("/teams", tags=["Teams"])
 async def get_teams():
     base_list = []
+    dayago = (datetime.now(tz=timezone(config.timezone)) - timedelta(days=1)).replace(tzinfo=None)
     for course in Course:
         course_list = db.get_collection(course)
+        for x in course_list:
+            if x["created_at"] <= dayago and len(x.get("players", [])[0].get("holes", [])) < 9:
+                db.delete_document(course, x["id"])
+            else:
+                x["course"] = course
+                base_list.append(x)
+    return base_list
+
+
+@app.get("/teams_twentyfour", tags=["Teams"])
+async def get_twentyfour_teams():
+    base_list = []
+    dayago = datetime.now(tz=timezone(config.timezone)) - timedelta(days=1)
+    for course in Course:
+        course_list = db.query_document(course, "created_at", ">=", dayago, False)
         for x in course_list:
             x["course"] = course
             base_list.append(x)
@@ -160,10 +175,11 @@ async def get_a_list_of_teams(course: Course):
 # TODO: Document leaderboard
 @app.get("/{course}/leaderboard/{ltype}", tags=["Leaderboard"])
 async def get_leaderboard(ltype: Leaderboard_Type, course: Course):
-    weekago = datetime.datetime.now(tz=timezone(config.timezone)) - datetime.timedelta(days=7)
+    weekago = datetime.now(tz=timezone(config.timezone)) - timedelta(days=7)
     result_list = db.query_document(course, "created_at", ">=", weekago, False)
     if ltype == 'team':
-        weekresults = [{'team': x.get('name'), 'scores': x.get('scores')} for x in result_list if len(x.get("players", [])[0].get("holes", [])) == 9]
+        weekresults = [{'team': x.get('name'), 'scores': x.get('scores')} for x in result_list if
+                       len(x.get("players", [])[0].get("holes", [])) == 9]
         weekresults = sorted(weekresults, key=lambda x: x['scores'], reverse=False)
     else:
         week_player_scores_list = []
@@ -203,7 +219,7 @@ async def get_alarms():
 async def create_alarm(alarm: Alarm):
     alarm, = basemodels_to_dicts(alarm)
     alarm["id"] = str(alarm["hole"])
-    db.upsert_document("alarms", alarm["course"]+alarm["id"], False, **alarm)
+    db.upsert_document("alarms", alarm["course"] + alarm["id"], False, **alarm)
     return alarm
 
 
@@ -212,7 +228,7 @@ async def create_alarm(alarm: Alarm):
 async def delete_alarm(alarm: Alarm):
     alarm, = basemodels_to_dicts(alarm)
     alarm["id"] = str(alarm["hole"])
-    db.delete_document("alarms", alarm["course"]+alarm["id"], False)
+    db.delete_document("alarms", alarm["course"] + alarm["id"], False)
     return alarm
 
 

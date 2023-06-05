@@ -4,9 +4,10 @@ import datetime
 from pytz import timezone
 import config
 
+
 class MongoConnection:
     def __init__(self):
-        self.client = pymongo.MongoClient("172.20.0.2", 27017)
+        self.client = pymongo.MongoClient("localhost", 3001)
         self.db = self.client.puttnation
         self.op_dict = {"==": "eq", ">=": "gte", ">": "gt", "in": "in",
                         "<=": "lte", "<": "lt", "!=": "ne", "nin": "nin"}
@@ -77,8 +78,7 @@ class MongoConnection:
         weekago = datetime.datetime.now(tz=timezone(config.timezone)) - datetime.timedelta(days=7)
         res = self.db[collection].delete_many({"created_at": {"$lt": weekago}})
 
-
-# db = MongoConnection()
+db = MongoConnection()
 # db.db.drop_collection("alarms")
 # print(db.get_collection("circus"))
 # print(db.get_collection("alarms"))
