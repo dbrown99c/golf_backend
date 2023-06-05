@@ -78,7 +78,7 @@ class MongoConnection:
         weekago = datetime.datetime.now(tz=timezone(config.timezone)) - datetime.timedelta(days=7)
         res = self.db[collection].delete_many({"created_at": {"$lt": weekago}})
 
-db = MongoConnection()
+# db = MongoConnection()
 # db.db.drop_collection("alarms")
 # print(db.get_collection("circus"))
 # print(db.get_collection("alarms"))
