@@ -140,11 +140,11 @@ async def create_team(team: Team, course: Course):
 @app.get("/teams", tags=["Teams"])
 async def get_teams():
     base_list = []
-    dayago = (datetime.now(tz=timezone(config.timezone)) - timedelta(days=1)).replace(tzinfo=None)
+    complete_limit = (datetime.now(tz=timezone(config.timezone)) - timedelta(hours=12)).replace(tzinfo=None)
     for course in Course:
         course_list = db.get_collection(course)
         for x in course_list:
-            if x["created_at"] <= dayago and len(x.get("players", [])[0].get("holes", [])) < 9:
+            if x["created_at"] <= complete_limit and len(x.get("players", [])[0].get("holes", [])) < 9:
                 db.delete_document(course, x["id"])
             else:
                 x["course"] = course
