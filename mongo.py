@@ -6,7 +6,7 @@ import config
 
 class MongoConnection:
     def __init__(self):
-        self.client = pymongo.MongoClient("172.20.0.2", 27017)
+        self.client = pymongo.MongoClient("10.7.0.100", 3001)
         self.db = self.client.puttnation
         self.op_dict = {"==": "eq", ">=": "gte", ">": "gt", "in": "in",
                         "<=": "lte", "<": "lt", "!=": "ne", "nin": "nin"}
