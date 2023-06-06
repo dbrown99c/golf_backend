@@ -4,6 +4,7 @@ import datetime
 from pytz import timezone
 import config
 
+
 class MongoConnection:
     def __init__(self):
         self.client = pymongo.MongoClient("10.7.0.100", 3001)
@@ -76,7 +77,6 @@ class MongoConnection:
     def delete_old_docs(self, collection):
         weekago = datetime.datetime.now(tz=timezone(config.timezone)) - datetime.timedelta(days=7)
         res = self.db[collection].delete_many({"created_at": {"$lt": weekago}})
-
 
 # db = MongoConnection()
 # db.db.drop_collection("alarms")
