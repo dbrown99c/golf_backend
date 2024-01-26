@@ -1,7 +1,7 @@
 from typing import Optional, List, Any
 import json
 import config
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime, timedelta, timezone
@@ -121,20 +121,24 @@ async def create_team(team: Team, course: Course):
     team, = basemodels_to_dicts(team)
     players = team.get('players') if team.get('players') else {}
     team_list = db.query_document(course, "pin", ">", "", False)
-    pin_set = False
     pin_list = [x.get("pin") for x in team_list if x.get("pin")] if len(team_list) > 0 else []
-    while not pin_set:
-        pin = team.get('pin') if team.get('pin') else f"{random.randint(1, 10 ** 4 - 1):{'04d'}}"
-        if pin not in pin_list:
-            pin_set = True
-        "duplicate pin"
-        time.sleep(1)
+    pin = team.get('pin') \
+        if team.get('pin') \
+        else f"{random.choice([x for x in range(10000) if x not in pin_list]):{'04d'}}"
     scores = calculate_team_score(players) if players else 0
     doc_dict = {"name": team["name"], "created_at": current_datetime, "players": players, "pin": pin, "scores": scores}
     db.create_document(collection=course, **doc_dict)
     for _ in Course:
         db.delete_old_docs(_)
     return dict(id=0, name=team['name'], pin=pin)
+
+
+@app.post("/{course}/team/delete", tags=["Teams"])
+async def create_team(team: Team, course: Course):
+    team, = basemodels_to_dicts(team)
+    team_to_delete = db.query_document(course, "name", "==", team["name"], True)
+    db.delete_document(course, team_to_delete["id"])
+    return team_to_delete
 
 
 @app.get("/teams", tags=["Teams"])
