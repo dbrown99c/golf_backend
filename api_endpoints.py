@@ -122,7 +122,6 @@ async def create_team(team: Team, course: Course):
     players = team.get('players') if team.get('players') else {}
     team_list = db.query_document(course, "pin", ">", "", False)
     pin_list = [x.get("pin") for x in team_list if x.get("pin")] if len(team_list) > 0 else []
-    print(pin_list)
     pin = team.get('pin') \
         if team.get('pin') \
         else f"{random.choice([x for x in range(10000) if x not in pin_list]):{'04d'}}"
