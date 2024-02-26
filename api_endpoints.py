@@ -175,12 +175,13 @@ async def get_teams():
 @app.get("/teams_twentyfour", tags=["Teams"])
 async def get_twentyfour_teams():
     base_list = []
-    dayago = datetime.now(tz=timezone(config.timezone)) - timedelta(days=1)
+    dayago = (datetime.now(tz=timezone(config.timezone)) - timedelta(days=1)).replace(tzinfo=None)
     for course in Course:
-        course_list = db.query_document(course, "created_at", ">=", dayago, False)
+        course_list = db.get_collection(course)
         for x in course_list:
-            x["course"] = course
-            base_list.append(x)
+            if x["created_at"] >= dayago and len(x.get("players", [])[0].get("holes", [])) >= 9:
+            	x["course"] = course
+            	base_list.append(x)
     return base_list
 
 
