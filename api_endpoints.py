@@ -114,6 +114,17 @@ async def get_team(pin: str, course: Course):
     return team
 
 
+@app.get("/{course}/team_name/{name}", tags=["Teams"])
+async def get_team(name: str, course: Course):
+    team = db.query_document(course, "name", "==", name)
+    return team
+
+@app.get("/{course}/team_db_id/{db_id}", tags=["Teams"])
+async def get_team(db_id: str, course: Course):
+    team = db.get_document(course, db_id)
+    return team
+
+
 # TODO: Document Create Team
 @app.post("/{course}/team", tags=["Teams"])
 async def create_team(team: Team, course: Course):
@@ -121,9 +132,9 @@ async def create_team(team: Team, course: Course):
     team, = basemodels_to_dicts(team)
     players = team.get('players') if team.get('players') else {}
     team_list = db.query_document(course, "pin", ">", "", False)
-    pin_list = [x.get("pin") for x in team_list if x.get("pin")] if len(team_list) > 0 else []
+    pin_list = [x.get("pin") for x in team_list if x.get("pin", None)] if len(team_list) > 0 else []
     pin = team.get('pin') \
-        if team.get('pin') \
+        if team.get('pin', None) \
         else f"{random.choice([x for x in range(10000) if x not in pin_list]):{'04d'}}"
     scores = calculate_team_score(players) if players else 0
     doc_dict = {"name": team["name"], "created_at": current_datetime, "players": players, "pin": pin, "scores": scores}
@@ -136,9 +147,12 @@ async def create_team(team: Team, course: Course):
 @app.post("/{course}/team/delete", tags=["Teams"])
 async def create_team(team: Team, course: Course):
     team, = basemodels_to_dicts(team)
-    team_to_delete = db.query_document(course, "name", "==", team["name"], True)
-    db.delete_document(course, team_to_delete["id"])
-    return team_to_delete
+    if team.get("id", None):
+        db.delete_document(course, team["id"])
+    else:
+        team_to_delete = db.query_document(course, "name", "==", team["name"], True)
+        db.delete_document(course, team_to_delete["id"])
+    return team
 
 
 @app.get("/teams", tags=["Teams"])
@@ -148,9 +162,11 @@ async def get_teams():
     for course in Course:
         course_list = db.get_collection(course)
         for x in course_list:
-            if x["created_at"] <= complete_limit and len(x.get("players", [])[0].get("holes", [])) < 9:
+            if x.get("created_at", None) and x["created_at"] <= complete_limit and len(
+                    x.get("players", [])[0].get("holes", [])) < 9:
                 db.delete_document(course, x["id"])
             else:
+                x["created_at"] = datetime.now(tz=timezone(config.timezone)).replace(tzinfo=None)
                 x["course"] = course
                 base_list.append(x)
     return base_list

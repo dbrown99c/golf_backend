@@ -3,12 +3,13 @@ from bson import ObjectId
 import datetime
 from pytz import timezone
 import config
+import random
 
 
 class MongoConnection:
     def __init__(self):
-        self.client = pymongo.MongoClient("10.7.0.100", 3001)
-        # self.client = pymongo.MongoClient("localhost", 3001)
+        # self.client = pymongo.MongoClient("10.7.0.100", 3001)
+        self.client = pymongo.MongoClient("localhost", 3001)
         self.db = self.client.puttnation
         self.op_dict = {"==": "eq", ">=": "gte", ">": "gt", "in": "in",
                         "<=": "lte", "<": "lt", "!=": "ne", "nin": "nin"}
@@ -80,8 +81,15 @@ class MongoConnection:
         res = self.db[collection].delete_many({"created_at": {"$lt": weekago}})
 
 # db = MongoConnection()
+'''x = 0
+while x < 10:
+    db.create_document("circus", **{"name":"TEST", "players":[{"name":"P1","scores":0,"holes":[{"id":"1","scores":2}, {"id":"2","scores":2}, {"id":"3","scores":2}, {"id":"4","scores":2}, {"id":"5","scores":2}, {"id":"6","scores":2}, {"id":"7","scores":2}, {"id":"8","scores":2}]},{"name":"P2","scores":0,"holes":[{"id":"1","scores":2}, {"id":"2","scores":2}, {"id":"3","scores":2}, {"id":"4","scores":2}, {"id":"5","scores":2}, {"id":"6","scores":2}, {"id":"7","scores":2}, {"id":"8","scores":2}]}],"pin":f'{random.choice([x for x in range(10000)]):{"04d"}}',"scores":16, "course":"circus"})
+    x += 1'''
 # db.db.drop_collection("alarms")
-# print(db.get_collection("circus"))
+'''coll = db.get_collection("circus")
+for doc in coll:
+    db.delete_document("circus", doc["id"])
+print(db.get_collection("circus"))'''
 # print(db.get_collection("alarms"))
 # print(db.get_collection("pub"))
 # res = db.db["config"].find_one('timezone')
@@ -90,3 +98,4 @@ class MongoConnection:
 # db.update_document("pub", "644d850504fd861f26a59cff", object_id=True, **{"created_at": datetime.datetime(2023, 4, 29, 16, 17, 52, 559000)})
 # db.delete_old_docs("pub")
 # print(db.get_collection("pub"))
+# "2024-01-28T15:35:25.305000"
