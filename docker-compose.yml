@@ -1,4 +1,3 @@
-version: '3.7'
 services:
   mongo:
     container_name: "golf_database"
@@ -8,17 +7,26 @@ services:
       - "3001:27017"
     volumes:
       - db:/home/puttnation_db
+    networks:
+      - proxy
 
   golf_backend:
-    build: .
     container_name: "golf_backend"
+    build: .
+    image: golf_backend:latest
     ports:
       - "3002:80"
     restart: always
+    depends_on:
+      - mongo
+    environment:
+      DATABASE_URL: "mongodb://golf_database:27017/puttnation_db"
+    networks:
+      - proxy
 
 volumes:
   db:
+
 networks:
-  default:
-    name: proxy
+  proxy:
     external: true
