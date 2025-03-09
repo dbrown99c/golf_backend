@@ -1,14 +1,14 @@
 services:
   golf_database:
-    container_name: golf_database  # Ensures consistent naming
+    container_name: golf_database
     restart: always
     image: mongo:latest
     ports:
       - "3001:27017"
     volumes:
-      - db:/data/db  # Adjusted volume path for MongoDB consistency
+      - db:/data/db
     networks:
-      - proxy
+      - proxy  # Ensure it joins the shared network
 
   golf_backend:
     container_name: golf_backend
@@ -18,15 +18,15 @@ services:
       - "3002:80"
     restart: always
     depends_on:
-      - golf_database  # Ensures MongoDB starts before backend
+      - golf_database
     environment:
-      DATABASE_URL: "mongodb://golf_database:27017/puttnation_db"  # Use service name instead of IP
+      DATABASE_URL: "mongodb://golf_database:27017/puttnation_db"
     networks:
-      - proxy
+      - proxy  # Ensure it joins the shared network
 
 volumes:
   db:
 
 networks:
   proxy:
-    external: true
+    external: true  # Use the shared network
