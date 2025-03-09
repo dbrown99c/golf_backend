@@ -1,26 +1,26 @@
 services:
-  mongo:
-    container_name: "golf_database"
+  golf_database:
+    container_name: golf_database  # Ensures consistent naming
     restart: always
     image: mongo:latest
     ports:
       - "3001:27017"
     volumes:
-      - db:/home/puttnation_db
+      - db:/data/db  # Adjusted volume path for MongoDB consistency
     networks:
       - proxy
 
   golf_backend:
-    container_name: "golf_backend"
+    container_name: golf_backend
     build: .
     image: golf_backend:latest
     ports:
       - "3002:80"
     restart: always
     depends_on:
-      - mongo
+      - golf_database  # Ensures MongoDB starts before backend
     environment:
-      DATABASE_URL: "mongodb://golf_database:27017/puttnation_db"
+      DATABASE_URL: "mongodb://golf_database:27017/puttnation_db"  # Use service name instead of IP
     networks:
       - proxy
 
