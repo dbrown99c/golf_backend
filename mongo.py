@@ -3,14 +3,18 @@ from bson import ObjectId
 import datetime
 from pytz import timezone
 import config
+import os
 import random
 
 
 class MongoConnection:
     def __init__(self):
-        self.client = pymongo.MongoClient("10.7.0.100", 3001)
-        # self.client = pymongo.MongoClient("localhost", 3001)
-        self.db = self.client.puttnation
+        mongo_host = os.getenv("MONGO_HOST", "golf_database")  # Default to 'golf_database' service
+        mongo_port = int(os.getenv("MONGO_PORT", "27017"))  # Default to MongoDB port
+        mongo_dbname = os.getenv("MONGO_DBNAME", "puttnation")  # Default database name
+
+        self.client = pymongo.MongoClient(f"mongodb://{mongo_host}:{mongo_port}/")
+        self.db = self.client[mongo_dbname]  # Access the correct database
         self.op_dict = {"==": "eq", ">=": "gte", ">": "gt", "in": "in",
                         "<=": "lte", "<": "lt", "!=": "ne", "nin": "nin"}
 
